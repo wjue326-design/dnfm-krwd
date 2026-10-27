@@ -31,11 +31,18 @@ struct krw {
     char backend[128];
 };
 
+static const char *PRELOADS[] = {
+    "/var/jb/basebin/libjailbreak.dylib",
+    "/usr/lib/libjailbreak.dylib",
+    NULL
+};
+
 static const char *PATHS[] = {
-    "/usr/lib/libkrw.0.dylib",
-    "/var/jb/usr/lib/libkrw.0.dylib",
-    "/usr/lib/libkrw/libkrw-relaxin.dylib",
     "/var/jb/usr/lib/libkrw/libkrw-relaxin.dylib",
+    "/usr/lib/libkrw/libkrw-relaxin.dylib",
+    "/var/jb/usr/lib/libkrw.0.dylib",
+    "/usr/lib/libkrw.0.dylib",
+    "/var/jb/usr/lib/libkrw.dylib",
     "/usr/lib/libkrw.dylib",
     NULL
 };
@@ -53,8 +60,16 @@ static int krw_open(struct krw *k)
 {
     int i;
     memset(k, 0, sizeof(*k));
+    for (i = 0; PRELOADS[i]; i++) {
+        void *p = dlopen(PRELOADS[i], RTLD_NOW | RTLD_GLOBAL);
+        fprintf(stderr, "dnfm-krwd: preload %s -> %s
+", PRELOADS[i], p ? "ok" : dlerror());
+    }
     for (i = 0; PATHS[i]; i++) {
         k->h = dlopen(PATHS[i], RTLD_NOW);
+        if (!k->h)
+            fprintf(stderr, "dnfm-krwd: dlopen %s failed: %s
+", PATHS[i], dlerror());
         if (k->h) {
             k->read  = (fn_rw)sym_try(k->h, "kread", "kreadbuf", "krw_read");
             k->write = (fn_rw)sym_try(k->h, "kwrite", "kwritebuf", "krw_write");

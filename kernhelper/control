@@ -6,4 +6,4 @@ Description: 内核读写守护进程（本地测试用；加载 libkrw 并通�
 Maintainer: xingshu
 Author: xingshu
 Section: System
-Depends: firmware (>= 15.0), libkrw0
+Depends: 
