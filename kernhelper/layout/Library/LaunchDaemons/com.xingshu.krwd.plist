@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.xingshu.krwd</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/var/jb/usr/bin/dnfm-krwd</string>
+		<string>27050</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<true/>
+	<key>StandardOutPath</key>
+	<string>/var/log/dnfm-krwd.log</string>
+	<key>StandardErrorPath</key>
+	<string>/var/log/dnfm-krwd.log</string>
+</dict>
+</plist>

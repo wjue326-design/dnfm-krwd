@@ -1,0 +1,9 @@
+Package: com.xingshu.dnfm-krwd
+Name: DNFM Kernel R/W Daemon
+Version: 0.1.0
+Architecture: iphoneos-arm64
+Description: 内核读写守护进程（本地测试用；加载 libkrw 并通过 127.0.0.1 提供 kbase/kread/kwrite RPC）
+Maintainer: xingshu
+Author: xingshu
+Section: System
+Depends: firmware (>= 15.0), libkrw0

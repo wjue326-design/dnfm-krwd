@@ -1,0 +1,43 @@
+name: Build dnfm-krwd
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Theos
+        run: |
+          set -e
+          export THEOS=$HOME/theos
+          git clone --recursive --depth 1 https://github.com/theos/theos.git $THEOS
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/theos/sdks.git $THEOS/sdks
+          cd $THEOS/sdks
+          git sparse-checkout set iPhoneOS16.5.sdk
+          echo "THEOS=$THEOS" >> $GITHUB_ENV
+          echo "$THEOS/bin" >> $GITHUB_PATH
+
+      - name: Install ldid
+        run: |
+          brew install ldid || true
+          which ldid || echo "ldid missing"
+
+      - name: Build package (rootless)
+        env:
+          THEOS_PACKAGE_SCHEME: rootless
+        run: |
+          set -e
+          cd kernhelper
+          make package FINALPACKAGE=1
+          ls -lh packages/
+
+      - name: Upload deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: dnfm-krwd-deb
+          path: kernhelper/packages/*.deb
+          if-no-files-found: error
