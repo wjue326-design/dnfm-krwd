@@ -32,12 +32,15 @@ struct krw {
 };
 
 static const char *PRELOADS[] = {
+    "/private/var/tmp/libjailbreak.dylib",
     "/var/jb/basebin/libjailbreak.dylib",
     "/usr/lib/libjailbreak.dylib",
     NULL
 };
 
 static const char *PATHS[] = {
+    "/private/var/tmp/libkrwrelaxin.dylib",
+    "/private/var/tmp/libkrw.dylib",
     "/var/jb/usr/lib/libkrw/libkrw-relaxin.dylib",
     "/usr/lib/libkrw/libkrw-relaxin.dylib",
     "/var/jb/usr/lib/libkrw.0.dylib",
