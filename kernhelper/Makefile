@@ -9,7 +9,7 @@ include $(THEOS)/makefiles/common.mk
 TOOL_NAME = dnfm-krwd
 dnfm-krwd_FILES = main.c
 dnfm-krwd_CFLAGS = -Wall -O2 -fno-objc-arc
-dnfm-krwd_LDFLAGS = -ldl
+dnfm-krwd_LDFLAGS =
 dnfm-krwd_INSTALL_PATH = /usr/bin
 
 include $(THEOS_MAKE_PATH)/tool.mk

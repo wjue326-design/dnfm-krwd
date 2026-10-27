@@ -1,0 +1,47 @@
+{
+  "frida": [
+    "Broadcasting",
+    "ESTV",
+    "GCloud",
+    "GRobot",
+    "TTNetworkManager",
+    "UnityFramework",
+    "crosCurl",
+    "ilink_live_game"
+  ],
+  "jailbreak": [
+    "CrashSight",
+    "ESTV",
+    "GPM_dylib",
+    "enq_transceiver_dy"
+  ],
+  "Cydia": [
+    "Broadcasting",
+    "ESTV",
+    "GCloud",
+    "GCloudCore",
+    "UnityFramework"
+  ],
+  "substrate": [
+    "CrashSight",
+    "ESTV",
+    "GPM_dylib"
+  ],
+  "ptrace": [
+    "ESTV"
+  ],
+  "csops": [],
+  "sysctl": [
+    "Broadcasting",
+    "CrashSight",
+    "ESTV",
+    "GCloud",
+    "GCloudCore",
+    "GPM_dylib",
+    "GRobot",
+    "MSDKPIXCore"
+  ],
+  "DYLD_INSERT": [
+    "enq_transceiver_dy"
+  ]
+}

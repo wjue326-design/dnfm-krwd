@@ -24,6 +24,10 @@ jobs:
       - name: Install ldid
         run: |
           brew install ldid || true
+          if ! command -v ldid >/dev/null 2>&1; then
+            curl -L -o /usr/local/bin/ldid https://github.com/ProcursusTeam/ldid/releases/latest/download/ldid_macos_arm64 || true
+            chmod +x /usr/local/bin/ldid || true
+          fi
           which ldid || echo "ldid missing"
 
       - name: Build package (rootless)

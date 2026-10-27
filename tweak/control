@@ -1,0 +1,9 @@
+Package: com.xingshu.dnfagent
+Name: DNF Agent (iOS)
+Version: 0.1.0
+Architecture: iphoneos-arm64
+Description: DNFM iOS runtime data agent (local test only)
+Maintainer: xingshu
+Author: xingshu
+Section: Tweaks
+Depends: ellekit | mobilesubstrate

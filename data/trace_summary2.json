@@ -1,0 +1,38 @@
+{
+  "rows": 30001,
+  "env": [],
+  "suspect": [
+    [
+      "LOAD dlopen",
+      967
+    ],
+    [
+      "DBG proc_pidinfo",
+      275
+    ],
+    [
+      "LOAD dlsym",
+      112
+    ],
+    [
+      "NET send",
+      36
+    ],
+    [
+      "NET sendto",
+      36
+    ],
+    [
+      "NET recv",
+      27
+    ],
+    [
+      "NET recvfrom",
+      27
+    ],
+    [
+      "DBG csops",
+      9
+    ]
+  ]
+}

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.xingshu.fridad</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/var/jb/usr/sbin/frida-server</string>
+		<string>-l</string>
+		<string>127.0.0.1:27042</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<true/>
+	<key>StandardOutPath</key>
+	<string>/var/log/fridad.log</string>
+	<key>StandardErrorPath</key>
+	<string>/var/log/fridad.log</string>
+</dict>
+</plist>

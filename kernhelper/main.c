@@ -140,7 +140,7 @@ static void handle(struct krw *k, const char *req, char *resp, size_t cap)
         char addr[32] = {0};
         long long len = jget_int(req, "len", 16);
         static unsigned char buf[1 << 16];
-        static char hex[1 << 17];
+        static char hex[(1 << 17) + 2];
         unsigned long long a;
         if (jget_str(req, "addr", addr, sizeof(addr)) || len <= 0 || len > (long long)sizeof(buf)) {
             snprintf(resp, cap, "{\"ok\":false,\"err\":\"bad args\"}\n"); return;
