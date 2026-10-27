@@ -1,0 +1,8 @@
+Package: com.xingshu.krwtweak
+Name: KRW Tweak (SpringBoard)
+Version: 0.1.0
+Architecture: iphoneos-arm64
+Description: 在 SpringBoard 里加载 libkrw，暴露 127.0.0.1:27060 内核读写 RPC（本地测试）
+Maintainer: xingshu
+Author: xingshu
+Section: Tweaks

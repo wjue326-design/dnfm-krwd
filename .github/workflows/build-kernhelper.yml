@@ -36,20 +36,21 @@ jobs:
           fi
           which ldid || echo "ldid missing"
 
-      - name: Build package (rootless)
+      - name: Build packages (rootless)
         env:
           THEOS_PACKAGE_SCHEME: rootless
         run: |
           set -e
-          cd kernhelper
-          make package FINALPACKAGE=1
-          ls -lh packages/
+          cd kernhelper && make package FINALPACKAGE=1 && ls -lh packages/ && cd ..
+          cd krwtweak && make package FINALPACKAGE=1 && ls -lh packages/ && cd ..
 
       - name: Upload deb
         uses: actions/upload-artifact@v4
         with:
           name: dnfm-krwd-deb
-          path: kernhelper/packages/*.deb
+          path: |
+            kernhelper/packages/*.deb
+            krwtweak/packages/*.deb
           if-no-files-found: error
 
       - name: Publish release with deb
@@ -57,5 +58,7 @@ jobs:
         with:
           tag_name: build-${{ github.run_number }}
           name: dnfm-krwd build ${{ github.run_number }}
-          files: kernhelper/packages/*.deb
+          files: |
+            kernhelper/packages/*.deb
+            krwtweak/packages/*.deb
           generate_release_notes: false
