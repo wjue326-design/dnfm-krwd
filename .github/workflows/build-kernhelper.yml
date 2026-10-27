@@ -15,9 +15,12 @@ jobs:
           set -e
           export THEOS=$HOME/theos
           git clone --recursive --depth 1 https://github.com/theos/theos.git $THEOS
-          git clone --depth 1 --filter=blob:none --sparse https://github.com/theos/sdks.git $THEOS/sdks
-          cd $THEOS/sdks
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/theos/sdks.git $HOME/sdks-tmp
+          cd $HOME/sdks-tmp
           git sparse-checkout set iPhoneOS16.5.sdk
+          rm -rf $THEOS/sdks
+          mv $HOME/sdks-tmp $THEOS/sdks
+          ls $THEOS/sdks
           echo "THEOS=$THEOS" >> $GITHUB_ENV
           echo "$THEOS/bin" >> $GITHUB_PATH
 
