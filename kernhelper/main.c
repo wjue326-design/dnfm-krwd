@@ -62,14 +62,12 @@ static int krw_open(struct krw *k)
     memset(k, 0, sizeof(*k));
     for (i = 0; PRELOADS[i]; i++) {
         void *p = dlopen(PRELOADS[i], RTLD_NOW | RTLD_GLOBAL);
-        fprintf(stderr, "dnfm-krwd: preload %s -> %s
-", PRELOADS[i], p ? "ok" : dlerror());
+        fprintf(stderr, "dnfm-krwd: preload %s -> %s\n", PRELOADS[i], p ? "ok" : dlerror());
     }
     for (i = 0; PATHS[i]; i++) {
         k->h = dlopen(PATHS[i], RTLD_NOW);
         if (!k->h)
-            fprintf(stderr, "dnfm-krwd: dlopen %s failed: %s
-", PATHS[i], dlerror());
+            fprintf(stderr, "dnfm-krwd: dlopen %s failed: %s\n", PATHS[i], dlerror());
         if (k->h) {
             k->read  = (fn_rw)sym_try(k->h, "kread", "kreadbuf", "krw_read");
             k->write = (fn_rw)sym_try(k->h, "kwrite", "kwritebuf", "krw_write");
