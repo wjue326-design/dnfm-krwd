@@ -1,11 +1,11 @@
-// krwtweak.c —— 注入 SpringBoard，加载 libkrw，暴露本机内核读写 RPC
-// 为什么放这里：ellekit 注入的 tweak 天然带越狱上下文，能访问 /var/jb 并 dlopen 越狱库；
-// 独立 launchd 守护进程会被沙盒挡掉 mmap。
+// krwtweak.c —— 注入 SpringBoard 的内核读写 RPC（v2）
+// v2 修复：jbroot 路径动态发现、从 libjailbreak 解析 kread/kwrite、自动扫 kbase
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <dlfcn.h>
+#include <dirent.h>
 #include <pthread.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -16,39 +16,82 @@ typedef unsigned long long (*fn_base)(void);
 
 static fn_rw g_read, g_write;
 static fn_base g_base;
-static char g_backend[128];
+static char g_backend[256];
 
-static const char *PATHS[] = {
-    "/var/jb/usr/lib/libkrw/libkrw-relaxin.dylib",
-    "/var/jb/usr/lib/libkrw.0.dylib",
-    "/var/jb/usr/lib/libkrw.dylib",
-    "/private/var/tmp/libkrwrelaxin.dylib",
-    NULL
-};
-
-static void *sym(void *h, const char *a, const char *b)
+static int find_jbroot(char *out, size_t cap)
 {
-    void *p = dlsym(h, a);
-    if (!p && b) p = dlsym(h, b);
-    return p;
+    DIR *d = opendir("/var/containers/Bundle/Application");
+    struct dirent *de;
+    if (!d) return -1;
+    while ((de = readdir(d))) {
+        if (strncmp(de->d_name, ".jbroot-", 8) == 0) {
+            snprintf(out, cap, "/var/containers/Bundle/Application/%s", de->d_name);
+            closedir(d);
+            return 0;
+        }
+    }
+    closedir(d);
+    return -1;
 }
 
 static int krw_load(void)
 {
+    char jb[512], p[768];
+    void *h = NULL;
     int i;
-    for (i = 0; PATHS[i]; i++) {
-        void *h = dlopen(PATHS[i], RTLD_NOW | RTLD_GLOBAL);
-        if (!h) continue;
-        g_read  = (fn_rw)sym(h, "kread", "kreadbuf");
-        g_write = (fn_rw)sym(h, "kwrite", "kwritebuf");
-        g_base  = (fn_base)sym(h, "kbase", "kernel_base");
-        if (g_read && g_write) {
-            snprintf(g_backend, sizeof(g_backend), "%s", PATHS[i]);
-            return 0;
+    static const char *REL[] = {
+        "/usr/lib/libkrw/libkrw-relaxin.dylib",
+        "/usr/lib/libkrw.0.dylib",
+        "/usr/lib/libkrw.dylib",
+        "/private/var/tmp/libkrwrelaxin.dylib",
+        NULL
+    };
+    if (find_jbroot(jb, sizeof(jb)) == 0) {
+        for (i = 0; REL[i]; i++) {
+            snprintf(p, sizeof(p), "%s%s", jb, REL[i]);
+            h = dlopen(p, RTLD_NOW | RTLD_GLOBAL);
+            if (h) { snprintf(g_backend, sizeof(g_backend), "%s", p); break; }
         }
-        dlclose(h);
     }
-    return -1;
+    if (!h) {
+        for (i = 0; REL[i]; i++) {
+            h = dlopen(REL[i], RTLD_NOW | RTLD_GLOBAL);
+            if (h) { snprintf(g_backend, sizeof(g_backend), "%s", REL[i]); break; }
+        }
+    }
+    if (!h) return -1;
+
+    /* 初始化 libkrw（它自己会连 libjailbreak 的原语） */
+    {
+        void (*init)(void) = (void (*)(void))dlsym(h, "kcall_initializer");
+        if (init) init();
+    }
+
+    /* kread/kwrite 是 libjailbreak 的导入符号，用 RTLD_DEFAULT 解析 */
+    g_read  = (fn_rw)dlsym(RTLD_DEFAULT, "kreadbuf");
+    g_write = (fn_rw)dlsym(RTLD_DEFAULT, "kwritebuf");
+    if (!g_read)  g_read  = (fn_rw)dlsym(h, "kread");
+    if (!g_write) g_write = (fn_rw)dlsym(h, "kwrite");
+    g_base = (fn_base)dlsym(RTLD_DEFAULT, "kbase");
+
+    if (!g_read || !g_write) return -2;
+    return 0;
+}
+
+static unsigned long long scan_kbase(void)
+{
+    unsigned long long slide;
+    unsigned char buf[8];
+    if (!g_read) return 0;
+    for (slide = 0; slide <= 0x40000000ULL; slide += 0x200000ULL) {
+        unsigned long long base = 0xfffffff007004000ULL + slide;
+        if (g_read(base, buf, 4) == 0) {
+            unsigned int magic = buf[0] | (buf[1] << 8) | (buf[2] << 16) | ((unsigned)buf[3] << 24);
+            if (magic == 0xfeedfacf || magic == 0xfeedface)
+                return base;
+        }
+    }
+    return 0;
 }
 
 static void hexenc(const unsigned char *b, size_t n, char *o)
@@ -72,27 +115,51 @@ static int jstr(const char *j, const char *k, char *o, size_t cap)
     memcpy(o, p, n); o[n] = 0; return 0;
 }
 
+static unsigned long long parse_num(const char *s)
+{
+    if (!s) return 0;
+    if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) return strtoull(s + 2, NULL, 16);
+    return strtoull(s, NULL, 0);
+}
+
 static void handle(const char *req, char *resp, size_t cap)
 {
-    char cmd[24] = {0}, addr[32] = {0};
+    char cmd[24] = {0}, addr[32] = {0}, lenstr[32] = {0};
     if (jstr(req, "cmd", cmd, sizeof(cmd))) { snprintf(resp, cap, "{\"ok\":false}\n"); return; }
     if (!strcmp(cmd, "ping")) {
         snprintf(resp, cap, "{\"ok\":true,\"backend\":\"%s\"}\n", g_backend);
     } else if (!strcmp(cmd, "kbase")) {
         unsigned long long b = g_base ? g_base() : 0;
+        if (!b) b = scan_kbase();
         snprintf(resp, cap, "{\"ok\":%s,\"kbase\":\"0x%llx\"}\n", b ? "true" : "false", b);
     } else if (!strcmp(cmd, "kread")) {
         static unsigned char buf[1 << 16]; static char out[1 << 17];
         long long len = 32;
-        char tmp[32];
         if (jstr(req, "addr", addr, sizeof(addr))) { snprintf(resp, cap, "{\"ok\":false}\n"); return; }
-        if (!jstr(req, "len", tmp, sizeof(tmp))) len = strtoll(tmp, NULL, 0);
+        if (!jstr(req, "len", lenstr, sizeof(lenstr))) len = strtoll(lenstr, NULL, 0);
         if (len <= 0 || len > (long long)sizeof(buf)) len = 32;
-        if (g_read(strtoull(addr, NULL, 0), buf, (size_t)len) != 0) {
+        if (g_read(parse_num(addr), buf, (size_t)len) != 0) {
             snprintf(resp, cap, "{\"ok\":false,\"err\":\"kread failed\"}\n"); return;
         }
         hexenc(buf, (size_t)len, out);
-        snprintf(resp, cap, "{\"ok\":true,\"hex\":\"%s\"}", out);
+        snprintf(resp, cap, "{\"ok\":true,\"hex\":\"%s\"}\n", out);
+    } else if (!strcmp(cmd, "kwrite")) {
+        static unsigned char buf[1 << 16]; char hex[1 << 17] = {0};
+        size_t i, n;
+        if (jstr(req, "addr", addr, sizeof(addr)) || jstr(req, "hex", hex, sizeof(hex))) {
+            snprintf(resp, cap, "{\"ok\":false}\n"); return;
+        }
+        n = strlen(hex) / 2;
+        if (n > sizeof(buf)) n = sizeof(buf);
+        for (i = 0; i < n; i++) {
+            unsigned v;
+            if (sscanf(hex + i*2, "%2x", &v) != 1) { snprintf(resp, cap, "{\"ok\":false}\n"); return; }
+            buf[i] = (unsigned char)v;
+        }
+        if (g_write(parse_num(addr), buf, n) != 0) {
+            snprintf(resp, cap, "{\"ok\":false,\"err\":\"kwrite failed\"}\n"); return;
+        }
+        snprintf(resp, cap, "{\"ok\":true,\"len\":%zu}\n", n);
     } else {
         snprintf(resp, cap, "{\"ok\":false,\"err\":\"unknown\"}\n");
     }
@@ -135,7 +202,10 @@ __attribute__((constructor))
 static void krwtweak_init(void)
 {
     pthread_t th;
-    if (krw_load() != 0) return;
+    if (krw_load() != 0) {
+        /* 加载失败也起服务，ping 会返回 backend 为空，方便诊断 */
+        memset(g_backend, 0, sizeof(g_backend));
+    }
     pthread_create(&th, NULL, server, (void *)27060);
     pthread_detach(th);
 }
