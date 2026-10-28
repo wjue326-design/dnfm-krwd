@@ -67,12 +67,28 @@ static int krw_load(void)
         if (init) init();
     }
 
-    /* kread/kwrite 是 libjailbreak 的导入符号，用 RTLD_DEFAULT 解析 */
-    g_read  = (fn_rw)dlsym(RTLD_DEFAULT, "kreadbuf");
-    g_write = (fn_rw)dlsym(RTLD_DEFAULT, "kwritebuf");
-    if (!g_read)  g_read  = (fn_rw)dlsym(h, "kread");
-    if (!g_write) g_write = (fn_rw)dlsym(h, "kwrite");
-    g_base = (fn_base)dlsym(RTLD_DEFAULT, "kbase");
+    /* kread/kwrite 来自 libjailbreak，显式 RTLD_GLOBAL 打开它再解析 */
+    {
+        void *h2 = NULL;
+        char jb2[512], p2[768];
+        if (find_jbroot(jb2, sizeof(jb2)) == 0) {
+            snprintf(p2, sizeof(p2), "%s/basebin/libjailbreak.dylib", jb2);
+            h2 = dlopen(p2, RTLD_NOW | RTLD_GLOBAL);
+        }
+        if (!h2) h2 = dlopen("/private/var/tmp/libjailbreak.dylib", RTLD_NOW | RTLD_GLOBAL);
+        if (!h2) h2 = dlopen("/usr/lib/libjailbreak.dylib", RTLD_NOW | RTLD_GLOBAL);
+
+        if (h2) {
+            g_read   = (fn_rw)dlsym(h2, "kreadbuf");
+            g_write  = (fn_rw)dlsym(h2, "kwritebuf");
+            g_base   = (fn_base)dlsym(h2, "kbase");
+        }
+        if (!g_read)   g_read   = (fn_rw)dlsym(RTLD_DEFAULT, "kreadbuf");
+        if (!g_write)  g_write  = (fn_rw)dlsym(RTLD_DEFAULT, "kwritebuf");
+        if (!g_base)   g_base   = (fn_base)dlsym(RTLD_DEFAULT, "kbase");
+        if (!g_read)   g_read   = (fn_rw)dlsym(h, "kread");
+        if (!g_write)  g_write  = (fn_rw)dlsym(h, "kwrite");
+    }
 
     if (!g_read || !g_write) return -2;
     return 0;
@@ -85,6 +101,7 @@ static unsigned long long scan_kbase(void)
     if (!g_read) return 0;
     for (slide = 0; slide <= 0x40000000ULL; slide += 0x200000ULL) {
         unsigned long long base = 0xfffffff007004000ULL + slide;
+        memset(buf, 0, sizeof(buf));
         if (g_read(base, buf, 4) == 0) {
             unsigned int magic = buf[0] | (buf[1] << 8) | (buf[2] << 16) | ((unsigned)buf[3] << 24);
             if (magic == 0xfeedfacf || magic == 0xfeedface)
@@ -127,7 +144,8 @@ static void handle(const char *req, char *resp, size_t cap)
     char cmd[24] = {0}, addr[32] = {0}, lenstr[32] = {0};
     if (jstr(req, "cmd", cmd, sizeof(cmd))) { snprintf(resp, cap, "{\"ok\":false}\n"); return; }
     if (!strcmp(cmd, "ping")) {
-        snprintf(resp, cap, "{\"ok\":true,\"backend\":\"%s\"}\n", g_backend);
+        snprintf(resp, cap, "{\"ok\":true,\"backend\":\"%s\",\"read\":%d,\"write\":%d,\"base\":%d}\n",
+                 g_backend, g_read ? 1 : 0, g_write ? 1 : 0, g_base ? 1 : 0);
     } else if (!strcmp(cmd, "kbase")) {
         unsigned long long b = g_base ? g_base() : 0;
         if (!b) b = scan_kbase();
