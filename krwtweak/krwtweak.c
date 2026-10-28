@@ -74,7 +74,7 @@ static int jstr(const char *j, const char *k, char *o, size_t cap)
 
 static void handle(const char *req, char *resp, size_t cap)
 {
-    char cmd[24] = {0}, addr[32] = {0}, hex[1 << 17] = {0};
+    char cmd[24] = {0}, addr[32] = {0};
     if (jstr(req, "cmd", cmd, sizeof(cmd))) { snprintf(resp, cap, "{\"ok\":false}\n"); return; }
     if (!strcmp(cmd, "ping")) {
         snprintf(resp, cap, "{\"ok\":true,\"backend\":\"%s\"}\n", g_backend);
