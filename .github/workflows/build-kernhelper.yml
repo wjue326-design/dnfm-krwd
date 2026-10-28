@@ -31,18 +31,29 @@ jobs:
         run: |
           brew install ldid || true
           if ! command -v ldid >/dev/null 2>&1; then
-            curl -L -o /usr/local/bin/ldid https://github.com/ProcursusTeam/ldid/releases/latest/download/ldid_macos_arm64 || true
-            chmod +x /usr/local/bin/ldid || true
+            curl -L -o "$HOME/ldid" https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus7/ldid_macosx_arm64
+            chmod +x "$HOME/ldid"
+            sudo mv "$HOME/ldid" /usr/local/bin/ldid
           fi
-          which ldid || echo "ldid missing"
+          ldid -h 2>&1 | head -2 || true
 
       - name: Build packages (rootless)
         env:
           THEOS_PACKAGE_SCHEME: rootless
         run: |
           set -e
-          cd kernhelper && make package FINALPACKAGE=1 && ls -lh packages/ && cd ..
-          cd krwtweak && make package FINALPACKAGE=1 && ls -lh packages/ && cd ..
+          echo "== build kernhelper =="
+          cd kernhelper
+          make package FINALPACKAGE=1
+          ls -lh packages/ || true
+          cd ..
+          echo "== build krwtweak =="
+          cd krwtweak
+          make package FINALPACKAGE=1
+          ls -lh packages/ || true
+          cd ..
+          echo "== all debs =="
+          find . -name '*.deb' -print
 
       - name: Upload deb
         uses: actions/upload-artifact@v4
